@@ -314,6 +314,9 @@ button{font-family:var(--title);cursor:pointer}
 /* 入力するマス（選んだマス） */
 .cell.cur{box-shadow:inset 0 0 0 3px var(--accent),inset 0 0 0 100px color-mix(in srgb,var(--accent) 18%,transparent);z-index:4}
 .pc.cur{box-shadow:0 0 0 3px var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--cell))}
+
+/* 隠し部屋のクリア回数 */
+.pz-count{font-family:var(--font);font-size:.85em;opacity:.85;margin-left:4px}
 </style>
 </head>
 <body>
@@ -1112,7 +1115,7 @@ const RULES={
 /* ================= 保存 ================= */
 const KEY="himitsu-suuji:save-v1";
 function freshStory(){return{phase:"none",scene:0,cleared:STEPS.map(()=>false),got:[],hints:0};}
-function fresh(){return{unlocked:false,story:freshStory(),setUse:{},storyPuzzle:null,storyPaused:{},infPuzzle:null,last:"story",infOp:"rand"};}
+function fresh(){return{unlocked:false,story:freshStory(),setUse:{},storyPuzzle:null,storyPaused:{},infPuzzle:null,last:"story",infOp:"rand",clears:{}};}
 let SAVE=(()=>{try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.story){const st=s.story;
   if(!st.cleared){st.cleared=STEPS.map((_,i)=>i<(st.step||0));st.got=(st.digits||[]).filter(d=>d!=null);}
   // 古い保存データに無い項目（おまかせ設定など）は、最初の値で埋める
@@ -1357,10 +1360,16 @@ function computeMark(type,d){
 function colorCages(n,cages,cageOf){const col=new Array(cages.length).fill(-1);
   cages.forEach((cg,k)=>{const used=new Set();cg.cells.forEach(i=>KILLER.nbrs(i,n).forEach(b=>{if(cageOf[b]!==k)used.add(col[cageOf[b]])}));
     let c=Math.floor(Math.random()*KPAL.length);for(let t=0;t<KPAL.length&&used.has(c);t++)c=(c+1)%KPAL.length;col[k]=c;});return col;}
+// パズル名の横：物語は大きさ、隠し部屋はそのパズル・そのモードでクリアした回数
+const clearKey=()=>P.type+"-"+P.mode;
+function pzTitle(){
+  if(P.from==="story"){$("#pz-title").textContent=NAMES[P.type]+" "+(P.type==="pyramid"?P.size+"段":P.size+"×"+P.size);return;}
+  const n=(SAVE.clears||{})[clearKey()]||0;
+  $("#pz-title").innerHTML=`${NAMES[P.type]} <span class="pz-count">クリア${n}回</span>`;}
 function openPuzzle(p){
   P=p;selected=null;focusRun=-1;cur=-1;show("scr-puzzle");
   const scr=$("#scr-puzzle");scr.className="scr active t-"+P.mode;
-  $("#pz-title").textContent=NAMES[P.type]+" "+(P.type==="pyramid"?P.size+"段":P.size+"×"+P.size);
+  pzTitle();
   $("#pz-tag").textContent=MODE_NAME[P.mode];soundBtns();
   $("#pz-back1").textContent=P.from==="story"?"メモに戻る":"パズル選択に戻る";
   const rk=P.type==="pyramid"?"pyramid-"+P.op:P.type;SAVE.seenRules=SAVE.seenRules||{};
@@ -1508,7 +1517,8 @@ function cleared(){
     save();sfx("puzzle_clear");
     dialog(t,[["次へ",all?()=>playEnding(0):showMemo]]);
   }else{
-    SAVE.infPuzzle=null;save();sfx("puzzle_clear");
+    SAVE.clears=SAVE.clears||{};SAVE.clears[clearKey()]=(SAVE.clears[clearKey()]||0)+1;   // クリアした時だけ数える
+    SAVE.infPuzzle=null;save();sfx("puzzle_clear");pzTitle();
     const ctx={from:"inf",type:P.type,mode:P.mode,op:P.ctxOp};
     dialog("クリア！",[["次の問題",()=>startPuzzle(ctx)],["隠し部屋へもどる",()=>showHidden(false),"sub"]]);
   }

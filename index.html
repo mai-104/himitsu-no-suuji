@@ -317,6 +317,7 @@ button{font-family:var(--title);cursor:pointer}
 
 /* 隠し部屋のクリア回数 */
 .pz-count{font-family:var(--font);font-size:.85em;opacity:.85;margin-left:4px}
+.pyr-op small{font-size:.68em;font-weight:700;opacity:.8;margin-left:2px;letter-spacing:.05em}
 </style>
 </head>
 <body>
@@ -1361,7 +1362,8 @@ function colorCages(n,cages,cageOf){const col=new Array(cages.length).fill(-1);
   cages.forEach((cg,k)=>{const used=new Set();cg.cells.forEach(i=>KILLER.nbrs(i,n).forEach(b=>{if(cageOf[b]!==k)used.add(col[cageOf[b]])}));
     let c=Math.floor(Math.random()*KPAL.length);for(let t=0;t<KPAL.length&&used.has(c);t++)c=(c+1)%KPAL.length;col[k]=c;});return col;}
 // パズル名の横：物語は大きさ、隠し部屋はそのパズル・そのモードでクリアした回数
-const clearKey=()=>P.type+"-"+P.mode;
+// 星屑の階段は、選んだ計算（足し算・引き算・おまかせ）ごとにも分けて数える
+const clearKey=()=>P.type==="pyramid"?`pyramid-${P.ctxOp||P.op}-${P.mode}`:P.type+"-"+P.mode;
 function pzTitle(){
   if(P.from==="story"){$("#pz-title").textContent=NAMES[P.type]+" "+(P.type==="pyramid"?P.size+"段":P.size+"×"+P.size);return;}
   const n=(SAVE.clears||{})[clearKey()]||0;
@@ -1433,7 +1435,7 @@ function renderPyramid(){
   const d=P.data,L=d.L,lay=PYRAMID.pyrLayout(L),b=$("#board");b.innerHTML="";
   const box=document.createElement("div");box.className="pyr";
   // 計算のしかたを、ピラミッドの上に大きく出す
-  const op=document.createElement("div");op.className="pyr-op "+d.op;op.innerHTML=d.op==="add"?"<b>＋</b>足し算":"<b>−</b>引き算";box.appendChild(op);
+  const op=document.createElement("div");op.className="pyr-op "+d.op;op.innerHTML=(d.op==="add"?"<b>＋</b>足し算":"<b>−</b>引き算")+(P.from!=="story"&&P.ctxOp==="rand"?"<small>おまかせ</small>":"");box.appendChild(op);   // おまかせで選ばれた時は札に書き添える
   // マスの大きさは5段の時に合わせて固定し、一番下の段の位置もそろえる（段が増えると上に積み上がる）
   const size=`min(calc((${W_()} - 16px) / 5), 84px)`,big=Math.max(...d.solution.map(x=>String(x).length));
   for(let r=L-1;r>=0;r--){const row=document.createElement("div");row.className="prow";

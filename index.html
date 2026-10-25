@@ -308,8 +308,8 @@ button{font-family:var(--title);cursor:pointer}
 /* 数字はZen角ゴシック（盤面・数字ボタン・ダイヤル・解けた数字の□） */
 #board,.pad,.pad button,.digits,#wheels,.mini,.lives{font-family:var(--font)}
 
-/* 遊び方のいちばん下のAI使用表記 */
-#dlgCredit{display:none;margin:16px 0 0;font-size:11px;line-height:1.6;text-align:center;opacity:.65}
+/* タイトル画面いちばん下のAI使用表記 */
+.t-credit{position:absolute;left:0;right:0;bottom:1.6%;text-align:center;color:#fff8ea;opacity:.92;font-size:10.5px;letter-spacing:.04em;text-shadow:0 1px 3px #000c;pointer-events:none}
 </style>
 </head>
 <body>
@@ -321,6 +321,7 @@ button{font-family:var(--title);cursor:pointer}
     <div class="t-top"></div>
     <div class="t-title"><h1>秘密の数字<span>と隠し部屋</span></h1><div class="small">― 消える博士の謎 ―</div></div>
     <div class="t-menu" id="t-menu"></div>
+    <div class="t-credit">BGM：Gemini（Lyria）で生成　画像：ChatGPTで生成</div>
     <button class="snd snd-float">🔊</button><button class="bgm snd-float" style="left:50px">♪</button>
   </div>
 </div>
@@ -422,7 +423,7 @@ button{font-family:var(--title);cursor:pointer}
   <div id="zmsg"></div></div>
 <div id="viewer"><img id="viewer-img" alt=""><div class="close">タップでとじる</div></div>
 <div id="flash"></div>
-<div id="dlg"><div class="box"><p id="dlgText"></p><div id="dlgBtns"></div><p id="dlgCredit">BGM：Gemini（Lyria）で生成<br>画像：ChatGPTで生成</p></div></div>
+<div id="dlg"><div class="box"><p id="dlgText"></p><div id="dlgBtns"></div></div></div>
 
 <script>
 const SUDOKU=(()=>{
@@ -1114,8 +1115,7 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(SAVE));}catch(e){}}
 
 /* ================= 共通 ================= */
 function show(id){document.querySelectorAll(".scr").forEach(s=>s.classList.toggle("active",s.id===id));if(id!=="scr-hidden")stopRain();bgmSet(id);}
-function dialog(html,btns,credit){
-  $("#dlgCredit").style.display=credit?"block":"none";   // AI使用の表記は、遊び方の時だけ
+function dialog(html,btns){
   $("#dlgText").innerHTML=html;const w=$("#dlgBtns");w.innerHTML="";
   btns.forEach(([label,fn,cls])=>{const b=document.createElement("button");b.textContent=label;if(cls)b.className=cls;
     b.onclick=()=>{$("#dlg").classList.remove("show");fn&&fn();};w.appendChild(b);});
@@ -1509,7 +1509,7 @@ $("#hintBtn").onclick=()=>{
 };
 $("#resetBtn").onclick=()=>{if(P.done)return;dialog("この盤面を最初からやり直しますか？<br><small>ミスとヒントの回数も元に戻ります</small>",[["やり直す",()=>{restartP();render();}],["やめる",null,"sub"]]);};
 $("#pz-help").onclick=()=>{const r=P.type==="pyramid"?RULES[P.op]:RULES[P.type];
-  dialog(`<b>${P.type==="pyramid"?NAMES[P.type]+"（"+(P.op==="add"?"足し算":"引き算")+"）":NAMES[P.type]}の遊び方</b><br><span style="font-size:14px;display:block;text-align:left;margin-top:8px">${r}<br><br>・数字ボタンをタップしてから、入れたいマスをタップします<br>・まちがえるとミスになります（${limit()}回まで）<br>・💡ヒントで、答えが決まるマスが光ります（${hintLimit()}回まで）</span>`,[["とじる",null]],true);};
+  dialog(`<b>${P.type==="pyramid"?NAMES[P.type]+"（"+(P.op==="add"?"足し算":"引き算")+"）":NAMES[P.type]}の遊び方</b><br><span style="font-size:14px;display:block;text-align:left;margin-top:8px">${r}<br><br>・数字ボタンをタップしてから、入れたいマスをタップします<br>・まちがえるとミスになります（${limit()}回まで）<br>・💡ヒントで、答えが決まるマスが光ります（${hintLimit()}回まで）</span>`,[["とじる",null]]);};
 // 戻るボタン（どちらで戻っても、遊んでいた盤面は保存される）
 function leavePuzzle(){if(P.from==="story"){SAVE.storyPaused=SAVE.storyPaused||{};SAVE.storyPaused[P.step]=P;}save();}
 $("#pz-back1").onclick=()=>{leavePuzzle();if(P.from==="story")showMemo();else{showHidden(false);openPick(P.type);}};

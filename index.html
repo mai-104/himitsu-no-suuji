@@ -310,6 +310,10 @@ button{font-family:var(--title);cursor:pointer}
 
 /* タイトル画面いちばん下のAI使用表記 */
 .t-credit{position:absolute;left:0;right:0;bottom:1.6%;text-align:center;color:#fff8ea;opacity:.92;font-size:10.5px;letter-spacing:.04em;text-shadow:0 1px 3px #000c;pointer-events:none}
+
+/* 入力するマス（選んだマス） */
+.cell.cur{box-shadow:inset 0 0 0 3px var(--accent),inset 0 0 0 100px color-mix(in srgb,var(--accent) 18%,transparent);z-index:4}
+.pc.cur{box-shadow:0 0 0 3px var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--cell))}
 </style>
 </head>
 <body>
@@ -1312,7 +1316,7 @@ function showMemo(){
 $("#memo-back").onclick=goTitle;
 
 /* ================= パズル ================= */
-let P=null,selected=null,focusRun=-1;
+let P=null,selected=null,focusRun=-1,cur=-1;   // selected＝同じ数字を光らせる数字、cur＝入力するマス
 const limit=()=>P.mode==="story"||P.mode==="challenge"?5:3, hintLimit=()=>P.mode==="story"||P.mode==="challenge"?3:1;
 const KPAL=["#fde8e4","#e3f0fb","#e8f5e1","#fff3d6","#efe6f7","#e0f4f1"];
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -1352,14 +1356,14 @@ function colorCages(n,cages,cageOf){const col=new Array(cages.length).fill(-1);
   cages.forEach((cg,k)=>{const used=new Set();cg.cells.forEach(i=>KILLER.nbrs(i,n).forEach(b=>{if(cageOf[b]!==k)used.add(col[cageOf[b]])}));
     let c=Math.floor(Math.random()*KPAL.length);for(let t=0;t<KPAL.length&&used.has(c);t++)c=(c+1)%KPAL.length;col[k]=c;});return col;}
 function openPuzzle(p){
-  P=p;selected=null;focusRun=-1;show("scr-puzzle");
+  P=p;selected=null;focusRun=-1;cur=-1;show("scr-puzzle");
   const scr=$("#scr-puzzle");scr.className="scr active t-"+P.mode;
   $("#pz-title").textContent=NAMES[P.type]+" "+(P.type==="pyramid"?P.size+"段":P.size+"×"+P.size);
   $("#pz-tag").textContent=MODE_NAME[P.mode];soundBtns();
   $("#pz-back1").textContent=P.from==="story"?"メモに戻る":"パズル選択に戻る";
   const rk=P.type==="pyramid"?"pyramid-"+P.op:P.type;SAVE.seenRules=SAVE.seenRules||{};
   if(P.from==="story"&&!SAVE.seenRules[rk]){SAVE.seenRules[rk]=true;save();setTimeout(()=>$("#pz-help").click(),300);}
-  $("#pz-rule").textContent="数字ボタンをタップしてから、入れたいマスをタップします";
+  $("#pz-rule").textContent="入れたいマスをタップしてから、数字ボタンをタップします";
   render();
 }
 function render(){
@@ -1388,6 +1392,7 @@ function renderGrid(){
     }else v.style.paddingTop="0";
     if(P.board[i]){v.textContent=P.board[i];if(!d.puzzle[i])cell.classList.add("user");if(selected&&P.board[i]===selected)cell.classList.add("same");}
     else if(i===P.hintCell){cell.classList.add("hinted");v.classList.add("ghost");v.textContent=d.solution[i];}
+    if(i===cur)cell.classList.add("cur");
     cell.appendChild(v);if(i===P.mark)cell.classList.add("mark");
     cell.onclick=()=>tapCell(i);g.appendChild(cell);}
   b.appendChild(g);
@@ -1407,6 +1412,7 @@ function renderKakuro(){
     }else{cell.style.fontSize=`calc(${W_()} / ${n} * 0.55)`;if(hl.has(i))cell.classList.add("run");
       if(P.board[i]){cell.textContent=P.board[i];if(!d.puzzle[i])cell.classList.add("user");}
       else if(i===P.hintCell){cell.classList.add("hinted");cell.innerHTML=`<span class="ghost">${d.solution[i]}</span>`;}
+      if(i===cur)cell.classList.add("cur");
       if(i===P.mark)cell.classList.add("mark");cell.onclick=()=>tapCell(i);}
     g.appendChild(cell);}
   b.appendChild(g);
@@ -1426,7 +1432,7 @@ function renderPyramid(){
       else if(P.board[i]!=null){c.classList.add("user");c.textContent=P.board[i];}
       else if(P.partial[i]){c.classList.add("user");const a=String(d.solution[i]);c.innerHTML=`${P.partial[i]}<span class="rest">${"_".repeat(a.length-P.partial[i].length)}</span>`;}
       else if(i===P.hintCell){c.classList.add("hinted");c.innerHTML=`<span class="ghost">${d.solution[i]}</span>`;}
-      if(i===P.mark)c.classList.add("top");
+      if(i===P.mark)c.classList.add("top");if(i===cur)c.classList.add("cur");
       c.onclick=()=>tapCell(i);row.appendChild(c);}
     box.appendChild(row);}
   b.appendChild(box);
@@ -1438,21 +1444,31 @@ function renderPad(){
   for(const k of keys){const b=document.createElement("button");b.className="num"+(k===selected?" on":"");
     if(P.type==="sudoku"||P.type==="killer"){const left=P.size-P.board.filter(v=>v===k).length;b.innerHTML=`${k}<small>のこり${left}</small>`;b.disabled=left===0||P.done;}
     else{b.textContent=k;b.disabled=P.done;}
-    b.onclick=()=>{selected=k;render();};pad.appendChild(b);}
+    b.onclick=()=>inputNum(k);pad.appendChild(b);}
 }
+// マスをタップ：空いているマスなら、そこを「入力するマス」にする（もう一度タップで解除）
 function tapCell(i){
   if(P.done)return;
-  const t=P.type,d=P.data;
-  if(t==="sudoku"||t==="killer"){if(P.board[i]){selected=P.board[i];render();return;}}
+  const t=P.type;
+  if((t==="sudoku"||t==="killer")&&P.board[i]){cur=-1;selected=P.board[i];render();return;}   // 埋まっているマス：同じ数字を光らせる
   if(!empty(i))return;
-  if(selected==null)return;
+  cur=cur===i?-1:i;selected=null;render();
+}
+// 数字ボタン：選んであるマスに入れる
+function inputNum(k){
+  if(P.done)return;
+  const t=P.type,d=P.data;
+  if(cur<0||!empty(cur)){cur=-1;
+    if(t==="sudoku"||t==="killer"){selected=selected===k?null:k;render();}   // マスを選んでいない時は、その数字を光らせるだけ
+    return;}
+  const i=cur;
   if(t==="pyramid"){
-    const ans=String(d.solution[i]),str=(P.partial[i]||"")+selected;
-    if(str.length<ans.length){P.partial[i]=str;save();render();sfx("digit_partial");return;}   // 途中の桁：合っているかはまだ言わない音
+    const ans=String(d.solution[i]),str=(P.partial[i]||"")+k;
+    if(str.length<ans.length){P.partial[i]=str;save();render();sfx("digit_partial");return;}   // 途中の桁：マスは選んだまま
     delete P.partial[i];
     if(str!==ans&&P.mode==="story"&&pyrUndecided(i,+str)){render();sfx("undecided");toast("このマスはまだ決められないよ。<br>一番下の段の、ほかのマスから埋めてみよう");return;}
     check(i,str===ans,str);return;}
-  check(i,d.solution[i]===selected,selected);
+  check(i,d.solution[i]===k,k);
 }
 // ピラミッド：今わかっている数字だけでは、入れた数字もまちがいとは言えない（まだ決められないマス）か
 function pyrUndecided(i,v){
@@ -1468,8 +1484,7 @@ function pyrUndecided(i,v){
 let toastT=null;function toast(html){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";document.body.appendChild(t);}
   t.innerHTML=html;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2800);}
 function check(i,ok,shown){
-  if(ok){P.board[i]=P.data.solution[i];
-    if((P.type==="sudoku"||P.type==="killer")&&P.board.filter(x=>x===selected).length===P.size)selected=null;
+  if(ok){P.board[i]=P.data.solution[i];cur=-1;selected=null;
     sfx("number_correct");save();render();
     if(isComplete())setTimeout(cleared,250);
   }else{P.misses++;save();render();sfx(P.misses>=limit()?"mistake_limit":"number_mistake");
@@ -1496,7 +1511,7 @@ function cleared(){
     dialog("クリア！",[["次の問題",()=>startPuzzle(ctx)],["隠し部屋へもどる",()=>showHidden(false),"sub"]]);
   }
 }
-function restartP(){P.board=P.data.puzzle.slice();P.partial={};P.misses=0;P.hints=0;P.hintCell=-1;P.done=false;selected=null;focusRun=-1;save();}
+function restartP(){P.board=P.data.puzzle.slice();P.partial={};P.misses=0;P.hints=0;P.hintCell=-1;P.done=false;selected=null;focusRun=-1;cur=-1;save();}
 function over(){dialog(`ミスが${limit()}回になりました`,[["この問題を最初からやり直す",()=>{restartP();render();}],["タイトルへ戻る",()=>{restartP();goTitle();},"sub"]]);}
 $("#hintBtn").onclick=()=>{
   if(P.done||P.hints>=hintLimit()||(P.hintCell>=0&&empty(P.hintCell)))return;
@@ -1509,7 +1524,7 @@ $("#hintBtn").onclick=()=>{
 };
 $("#resetBtn").onclick=()=>{if(P.done)return;dialog("この盤面を最初からやり直しますか？<br><small>ミスとヒントの回数も元に戻ります</small>",[["やり直す",()=>{restartP();render();}],["やめる",null,"sub"]]);};
 $("#pz-help").onclick=()=>{const r=P.type==="pyramid"?RULES[P.op]:RULES[P.type];
-  dialog(`<b>${P.type==="pyramid"?NAMES[P.type]+"（"+(P.op==="add"?"足し算":"引き算")+"）":NAMES[P.type]}の遊び方</b><br><span style="font-size:14px;display:block;text-align:left;margin-top:8px">${r}<br><br>・数字ボタンをタップしてから、入れたいマスをタップします<br>・まちがえるとミスになります（${limit()}回まで）<br>・💡ヒントで、答えが決まるマスが光ります（${hintLimit()}回まで）</span>`,[["とじる",null]]);};
+  dialog(`<b>${P.type==="pyramid"?NAMES[P.type]+"（"+(P.op==="add"?"足し算":"引き算")+"）":NAMES[P.type]}の遊び方</b><br><span style="font-size:14px;display:block;text-align:left;margin-top:8px">${r}<br><br>・入れたいマスをタップしてから、数字ボタンをタップします<br>・まちがえるとミスになります（${limit()}回まで）<br>・💡ヒントで、答えが決まるマスが光ります（${hintLimit()}回まで）</span>`,[["とじる",null]]);};
 // 戻るボタン（どちらで戻っても、遊んでいた盤面は保存される）
 function leavePuzzle(){if(P.from==="story"){SAVE.storyPaused=SAVE.storyPaused||{};SAVE.storyPaused[P.step]=P;}save();}
 $("#pz-back1").onclick=()=>{leavePuzzle();if(P.from==="story")showMemo();else{showHidden(false);openPick(P.type);}};

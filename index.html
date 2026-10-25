@@ -1114,7 +1114,9 @@ const KEY="himitsu-suuji:save-v1";
 function freshStory(){return{phase:"none",scene:0,cleared:STEPS.map(()=>false),got:[],hints:0};}
 function fresh(){return{unlocked:false,story:freshStory(),setUse:{},storyPuzzle:null,storyPaused:{},infPuzzle:null,last:"story",infOp:"rand"};}
 let SAVE=(()=>{try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.story){const st=s.story;
-  if(!st.cleared){st.cleared=STEPS.map((_,i)=>i<(st.step||0));st.got=(st.digits||[]).filter(d=>d!=null);}return s;}}catch(e){}return fresh();})();
+  if(!st.cleared){st.cleared=STEPS.map((_,i)=>i<(st.step||0));st.got=(st.digits||[]).filter(d=>d!=null);}
+  // 古い保存データに無い項目（おまかせ設定など）は、最初の値で埋める
+  const f=fresh();for(const k in f)if(s[k]===undefined)s[k]=f[k];if(!["add","sub","rand"].includes(s.infOp))s.infOp="rand";return s;}}catch(e){}return fresh();})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(SAVE));}catch(e){}}
 
 /* ================= 共通 ================= */
